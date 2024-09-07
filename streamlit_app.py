@@ -42,6 +42,23 @@ def load_data():
 
 data = load_data()
 
+# Display the logo using Streamlit's st.image
+logo_path = 'logo.png'  # path to the uploaded logo file
+
+# Use Streamlit to display the logo
+col1, col2 = st.columns([5, 12])  # Adjust the ratio for layout
+with col1:
+    st.image(logo_path, width=180)  # Adjust the width as needed
+
+with col2:
+    st.markdown(
+        "<h1 style='text-align: left; display: inline-block;'>PHEGEN 🧬</h1>"
+        "<h4 style='text-align: left;'> Gene Prediction for Antibiotic Resistance </h4>",
+        unsafe_allow_html=True
+    )
+
+st.markdown("<p style='text-align: center;'>Select the options below to predict the presence of genes based on antibiotic resistance profiles.</p>", unsafe_allow_html=True)
+
 if data is not None:
     # Extract unique options only from the model's training data
     species_options = sorted(species_encoder.classes_.tolist())
@@ -100,23 +117,19 @@ if data is not None:
             border-radius: 5px;
             padding: 5px;
         }
-        h1 {
-            color: #007BFF;
-        }
-        p {
-            color: #6c757d;
-        }
         .stTable {
             margin-top: 20px;
             border: 1px solid #ddd;
         }
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 14px;
+            color: #888888;
+        }
         </style>
         """, unsafe_allow_html=True
     )
-
-    # Streamlit app with custom title and description
-    st.markdown("<h1 style='text-align: center;'>PHEGEN (Gene Prediction from Antibiotic Resistance)🧬</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Select the options below to predict the presence of genes based on antibiotic resistance profiles.</p>", unsafe_allow_html=True)
 
     # Create columns for better layout
     col1, col2, col3 = st.columns(3)
@@ -175,3 +188,6 @@ if data is not None:
                 st.error(f"Unexpected error during prediction: {e}")
 else:
     st.error("Data failed to load. Please check the dataset file.")
+
+# Footer
+st.markdown("<footer>All rights reserved to Kashif Saleem</footer>", unsafe_allow_html=True)
