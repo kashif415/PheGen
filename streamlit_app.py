@@ -85,7 +85,7 @@ if data is not None:
         <style>
         .stButton>button {
             color: white;
-            background-color: #007BFF;
+            background-color: #FFFFFF;
             border-radius: 10px;
             font-size: 16px;
             font-weight: bold;
