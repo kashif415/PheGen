@@ -1,0 +1,5 @@
+pandas
+numpy
+tensorflow
+scikit-learn==1.5.0
+openpyxl
