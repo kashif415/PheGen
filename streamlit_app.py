@@ -190,4 +190,4 @@ else:
     st.error("Data failed to load. Please check the dataset file.")
 
 # Footer
-st.markdown("<footer>All rights reserved to Kashif Saleem</footer>", unsafe_allow_html=True)
+st.markdown("<footer>All rights are reserved</footer>", unsafe_allow_html=True)
