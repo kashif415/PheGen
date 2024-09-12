@@ -4,7 +4,6 @@ import numpy as np
 from tensorflow.keras.models import load_model
 import pickle
 import matplotlib.pyplot as plt
-from fpdf import FPDF
 import base64
 import io
 
@@ -82,25 +81,8 @@ if data is not None:
             st.error(f"Key error during preprocessing: {e}")
         except Exception as e:
             st.error(f"Error during preprocessing: {e}")
-    def generate_pdf(prediction_results, fig_bar, fig_pie):
-        pdf = FPDF()
-        pdf.add_page()
-    # Custom CSS for styling
-    st.markdown(
-        """
-        <style>
-        .stButton>button {
-            color: white;
-            background-color: #1f3a68;
-            border-radius: 10px;
-        }
-        .stApp {
-            padding: 20px;
-        }
-        </style>
-        """, unsafe_allow_html=True
-    )
 
+    # Heading section of the app
     st.markdown(
         """
         <div class='hover-section'>
@@ -173,7 +155,6 @@ if data is not None:
                     ('Susceptible', 'Intermediate', 'Resistant')
                 )
 
-# Prediction button with a unique key
 if st.button('Predict Genes', key='predict_genes_button'):
     with st.spinner('Predicting...'):
         try:
@@ -201,6 +182,19 @@ if st.button('Predict Genes', key='predict_genes_button'):
             ax_bar.set_title('Gene Presence Prediction Results')
             st.pyplot(fig_bar)
 
+            # Save bar chart to bytes
+            bar_chart_io = io.BytesIO()
+            fig_bar.savefig(bar_chart_io, format='PNG')
+            bar_chart_io.seek(0)
+
+            # Add download button for bar chart
+            st.download_button(
+                label="Download Bar Chart",
+                data=bar_chart_io,
+                file_name="gene_presence_bar_chart.png",
+                mime="image/png"
+            )
+
             # Pie chart for gene presence
             st.subheader('Gene Presence Distribution')
 
@@ -216,51 +210,18 @@ if st.button('Predict Genes', key='predict_genes_button'):
             ax_pie.set_title('Distribution of Gene Presence')
             st.pyplot(fig_pie)
 
-            # Function for generating the PDF report
-            def generate_pdf(prediction_results, fig_bar, fig_pie):
-                pdf = FPDF()
-                pdf.add_page()
+            # Save pie chart to bytes
+            pie_chart_io = io.BytesIO()
+            fig_pie.savefig(pie_chart_io, format='PNG')
+            pie_chart_io.seek(0)
 
-                # Add title
-                pdf.set_font("Arial", 'B', 16)
-                pdf.cell(200, 10, "Gene Prediction Report", ln=True, align='C')
-
-                # Add prediction results table
-                pdf.set_font("Arial", 'B', 12)
-                pdf.cell(200, 10, "Prediction Results:", ln=True)
-
-                pdf.set_font("Arial", size=10)
-                for gene, presence in prediction_results.items():
-                    pdf.cell(0, 10, f"{gene}: {'Present' if presence == 1 else 'Not Present'}", ln=True)
-
-                # Save bar chart as image
-                bar_chart_io = io.BytesIO()
-                fig_bar.savefig(bar_chart_io, format='PNG')
-                bar_chart_io.seek(0)
-                pdf.image(bar_chart_io, x=10, y=None, w=100)
-
-                # Save pie chart as image
-                pie_chart_io = io.BytesIO()
-                fig_pie.savefig(pie_chart_io, format='PNG')
-                pie_chart_io.seek(0)
-                pdf.image(pie_chart_io, x=110, y=None, w=100)
-
-                # Save PDF to a BytesIO object
-                pdf_output = io.BytesIO()
-                pdf.output(pdf_output)
-                pdf_output.seek(0)
-
-                return pdf_output
-
-            # Add button for downloading the report with a unique key
-            if st.button('Download Report', key='download_report_button'):
-                pdf_file = generate_pdf(prediction_results, fig_bar, fig_pie)
-                st.download_button(
-                    label="Download Report as PDF",
-                    data=pdf_file,
-                    file_name="gene_prediction_report.pdf",
-                    mime="application/pdf"
-                )
+            # Add download button for pie chart
+            st.download_button(
+                label="Download Pie Chart",
+                data=pie_chart_io,
+                file_name="gene_presence_pie_chart.png",
+                mime="image/png"
+            )
 
         except KeyError as e:
             st.error(f"Error in input data: {e}. Please check your input options.")
