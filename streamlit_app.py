@@ -3,6 +3,10 @@ import pandas as pd
 import numpy as np
 from tensorflow.keras.models import load_model
 import pickle
+import matplotlib.pyplot as plt
+from fpdf import FPDF
+import base64
+import io
 
 # Cache the model loading to ensure it's only done once
 @st.cache_resource
@@ -42,23 +46,6 @@ def load_data():
 
 data = load_data()
 
-# Display the logo using Streamlit's st.image
-logo_path = 'logo.png'  # path to the uploaded logo file
-
-# Use Streamlit to display the logo
-col1, col2 = st.columns([5, 12])  # Adjust the ratio for layout
-with col1:
-    st.image(logo_path, width=180)  # Adjust the width as needed
-
-with col2:
-    st.markdown(
-        "<h1 style='text-align: left; display: inline-block;'>PHEGEN 🧬</h1>"
-        "<h4 style='text-align: left;'> Gene Prediction for Antibiotic Resistance </h4>",
-        unsafe_allow_html=True
-    )
-
-st.markdown("<p style='text-align: center;'>Select the options below to predict the presence of genes based on antibiotic resistance profiles.</p>", unsafe_allow_html=True)
-
 if data is not None:
     # Extract unique options only from the model's training data
     species_options = sorted(species_encoder.classes_.tolist())
@@ -95,51 +82,72 @@ if data is not None:
             st.error(f"Key error during preprocessing: {e}")
         except Exception as e:
             st.error(f"Error during preprocessing: {e}")
-
+    def generate_pdf(prediction_results, fig_bar, fig_pie):
+        pdf = FPDF()
+        pdf.add_page()
     # Custom CSS for styling
     st.markdown(
         """
         <style>
         .stButton>button {
             color: white;
-            background-color: #ADD8E6;
+            background-color: #1f3a68;
             border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-            padding: 10px 20px;
         }
         .stApp {
-            background-color: #f8f9fa;
             padding: 20px;
-        }
-        .stSelectbox, .stRadio {
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 5px;
-        }
-        .stTable {
-            margin-top: 20px;
-            border: 1px solid #ddd;
-        }
-        footer {
-            text-align: center;
-            padding: 20px;
-            font-size: 14px;
-            color: #888888;
         }
         </style>
         """, unsafe_allow_html=True
     )
 
+    st.markdown(
+        """
+        <div class='hover-section'>
+            <h3 style='text-align: left;'>Input Selections:</h3>
+            <p><b>Species:</b> Select the bacterial species to analyze for antibiotic resistant genes.</p>
+            <p><b>Family:</b> Choose the bacterial family relevant to the analysis.</p>
+            <p><b>Source:</b> Indicate the sample source for the bacterial analysis.</p>
+        </div>
+        """, unsafe_allow_html=True
+    )
+
+    # Streamlit app with custom title and description
+    st.sidebar.image('logo.png', width=300)  # Adjust the file path and width as needed
+    st.sidebar.title("Welcome to PHEGEN 🧬")
+    st.sidebar.write("**Gene Prediction for Antibiotic Resistance.**")
+    st.sidebar.markdown("---")  # Divider
+    st.sidebar.header("Why PHEGEN?")
+    st.sidebar.write(
+    """
+    Welcome to **PHEGEN**:
+    PHEGEN is a powerful tool that uses data science and machine learning to predict genes associated with antibiotic resistance. By analyzing antibiotic profiles, it helps users identify and respond to emerging resistance threats more effectively. Users can select bacterial species, family, and sample source, and input antibiotic resistance statuses (e.g., Amikacin, Ampicillin, Ceftazidime). Based on these inputs, PHEGEN offers insights into potential gene presence, aiding in decision-making to combat antibiotic resistance and enhance public health outcomes.
+    """
+)
+    st.sidebar.markdown("---")  # Divider
+    st.sidebar.header("About")
+    st.sidebar.write(
+    """
+    PHEGEN is a cutting-edge tool that predicts genes associated with antibiotic resistance using advanced data science and machine learning. It enables healthcare professionals and researchers to quickly identify resistance threats by analyzing bacterial species, families, sample sources, and antibiotic resistance statuses. PHEGEN provides precise insights to guide interventions and improve public health strategies against antibiotic-resistant bacteria.
+    """
+    )
+
+    st.sidebar.markdown("---")  # Divider
+
+    # Contact or feedback section
+    st.sidebar.write("Created by Kashif For feedback, contact: [ks615502@gmail.com](mailto:ks615502@gmail.com)")
+
+    st.markdown("<p style='text-align: center; color: #6c757d;'>Select the options below to predict the presence of genes based on antibiotic resistance profiles.</p>", unsafe_allow_html=True)
+
     # Create columns for better layout
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        species = st.selectbox('Select Species:', species_options, key='species')
+        species = st.selectbox('Select Species:', species_options)
     with col2:
-        family = st.selectbox('Select Family:', family_options, key='family')
+        family = st.selectbox('Select Family:', family_options)
     with col3:
-        source = st.selectbox('Select Source:', source_options, key='source')
+        source = st.selectbox('Select Source:', source_options)
 
     # Organize antibiotic inputs in two columns
     st.subheader('Select Antibiotic Resistance Status:')
@@ -156,38 +164,105 @@ if data is not None:
             with col4:
                 form_data[antibiotic] = st.radio(
                     f'{antibiotic}:',
-                    ('Susceptible', 'Intermediate', 'Resistant'),
-                    horizontal=True,
-                    key=antibiotic
+                    ('Susceptible', 'Intermediate', 'Resistant')
                 )
         else:
             with col5:
                 form_data[antibiotic] = st.radio(
                     f'{antibiotic}:',
-                    ('Susceptible', 'Intermediate', 'Resistant'),
-                    horizontal=True,
-                    key=antibiotic
+                    ('Susceptible', 'Intermediate', 'Resistant')
                 )
 
-    # Prediction button
-    if st.button('Predict Genes'):
-        with st.spinner('Predicting...'):
-            try:
-                X = preprocess_input(form_data)
-                predictions = model.predict(X)
+# Prediction button with a unique key
+if st.button('Predict Genes', key='predict_genes_button'):
+    with st.spinner('Predicting...'):
+        try:
+            X = preprocess_input(form_data)
+            predictions = model.predict(X)
 
-                # Prepare the output in terms of gene presence
-                prediction_results = {gene: int(pred > 0.5) for gene, pred in zip(genotype_columns, predictions[0])}
+            # Prepare the output in terms of gene presence
+            prediction_results = {gene: int(pred > 0.5) for gene, pred in zip(genotype_columns, predictions[0])}
 
-                st.subheader('Prediction Results')
-                st.write('Genes presence (1: Present, 0: Not Present)')
-                st.table(pd.DataFrame(prediction_results.items(), columns=['Gene', 'Presence']))
-            except KeyError as e:
-                st.error(f"Error in input data: {e}. Please check your input options.")
-            except Exception as e:
-                st.error(f"Unexpected error during prediction: {e}")
-else:
-    st.error("Data failed to load. Please check the dataset file.")
+            st.subheader('Prediction Results')
+            st.write('Genes presence (1: Present, 0: Not Present)')
+            st.table(pd.DataFrame(prediction_results.items(), columns=['Gene', 'Presence']))
 
-# Footer
-st.markdown("<footer>All rights are reserved</footer>", unsafe_allow_html=True)
+            # Visualize the results with a bar chart
+            st.subheader('Gene Presence Visualization')
+
+            # Bar chart
+            gene_names = list(prediction_results.keys())
+            gene_presence = list(prediction_results.values())
+
+            # Create a bar chart
+            fig_bar, ax_bar = plt.subplots()
+            ax_bar.barh(gene_names, gene_presence, color='skyblue')
+            ax_bar.set_xlabel('Presence (1: Present, 0: Not Present)')
+            ax_bar.set_title('Gene Presence Prediction Results')
+            st.pyplot(fig_bar)
+
+            # Pie chart for gene presence
+            st.subheader('Gene Presence Distribution')
+
+            # Calculate the counts of present and not present genes
+            gene_count = [gene_presence.count(1), gene_presence.count(0)]
+            labels = ['Present', 'Not Present']
+            colors = ['#4CAF50', '#FF6347']
+
+            # Create a pie chart
+            fig_pie, ax_pie = plt.subplots()
+            ax_pie.pie(gene_count, labels=labels, autopct='%1.1f%%', colors=colors, startangle=140)
+            ax_pie.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+            ax_pie.set_title('Distribution of Gene Presence')
+            st.pyplot(fig_pie)
+
+            # Function for generating the PDF report
+            def generate_pdf(prediction_results, fig_bar, fig_pie):
+                pdf = FPDF()
+                pdf.add_page()
+
+                # Add title
+                pdf.set_font("Arial", 'B', 16)
+                pdf.cell(200, 10, "Gene Prediction Report", ln=True, align='C')
+
+                # Add prediction results table
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(200, 10, "Prediction Results:", ln=True)
+
+                pdf.set_font("Arial", size=10)
+                for gene, presence in prediction_results.items():
+                    pdf.cell(0, 10, f"{gene}: {'Present' if presence == 1 else 'Not Present'}", ln=True)
+
+                # Save bar chart as image
+                bar_chart_io = io.BytesIO()
+                fig_bar.savefig(bar_chart_io, format='PNG')
+                bar_chart_io.seek(0)
+                pdf.image(bar_chart_io, x=10, y=None, w=100)
+
+                # Save pie chart as image
+                pie_chart_io = io.BytesIO()
+                fig_pie.savefig(pie_chart_io, format='PNG')
+                pie_chart_io.seek(0)
+                pdf.image(pie_chart_io, x=110, y=None, w=100)
+
+                # Save PDF to a BytesIO object
+                pdf_output = io.BytesIO()
+                pdf.output(pdf_output)
+                pdf_output.seek(0)
+
+                return pdf_output
+
+            # Add button for downloading the report with a unique key
+            if st.button('Download Report', key='download_report_button'):
+                pdf_file = generate_pdf(prediction_results, fig_bar, fig_pie)
+                st.download_button(
+                    label="Download Report as PDF",
+                    data=pdf_file,
+                    file_name="gene_prediction_report.pdf",
+                    mime="application/pdf"
+                )
+
+        except KeyError as e:
+            st.error(f"Error in input data: {e}. Please check your input options.")
+        except Exception as e:
+            st.error(f"Unexpected error during prediction: {e}")
